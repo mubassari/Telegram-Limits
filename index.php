@@ -1,15 +1,15 @@
 <?php
 require "./core/i.php";
 
-setLang($_GET["hl"]);
+setLang($_GET["hl"] ?? false);
 if ($lang !== $_GET["hl"]) {
-    header("Location: /$lang/");
+    header("Location: /$lang");
 }
 
 $data = json_decode(file_get_contents(__DIR__ . "/data/$lang.json"), true);
 
 if (!$data && $lang !== $supported_langs[""]) {
-    header("Location: /{$supported_langs[""]}/");
+    header("Location: /{$supported_langs[""]}");
 }
 
 $main_qa = [];
@@ -46,12 +46,11 @@ $markup = [
 
 ?>
 <!DOCTYPE html>
-<html lang="<?= $lang ?>">
+<html lang="<?= $lang ?>" dir="<?= ($isRtl ? "rtl" : "ltr") ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" id="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Roboto:wght@400;500&family=Material+Icons+Outlined&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?= BASE ?>/assets/styles/style.css">
     <link rel="stylesheet" href="<?= BASE ?>/assets/styles/dark.css" media="(prefers-color-scheme: dark)">
     <link rel="stylesheet" href="<?= BASE ?>/assets/styles/print.css" media="print">
@@ -74,12 +73,12 @@ $markup = [
     <meta property="twitter:description" content="<?= __("description_short", UCOMP) ?>" data-lang="description_short">
     <meta property="twitter:image" content="<?= BASE ?>/assets/images/previews/<?= $lang ?>/twitter.png" data-lang="preview_twitter">
 
-    <link rel="alternate" href="/<?= $supported_langs[""] ?>" hreflang="x-default" />
+    <link rel="alternate" href="<?= BASE ?>/<?= $supported_langs[""] ?>" hreflang="x-default" />
     <?php
     foreach ($supported_langs as $key => $value) {
         if (strlen($key) == 0) continue;
     ?>
-        <link rel="alternate" hreflang="<?= $key ?>" href="/<?= ($value === true ? $key : $value) ?>" />
+        <link rel="alternate" hreflang="<?= $key ?>" href="<?= BASE ?>/<?= ($value === true ? $key : $value) ?>" />
     <?php
     }
     ?>
@@ -89,7 +88,9 @@ $markup = [
         window.data =
             <?= json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_UNICODE) ?>
     </script>
-    <script src="<?= BASE ?>/assets/scripts/screen.js"></script>
+    <script>
+        <?= file_get_contents("./assets/scripts/screen.js") ?>
+    </script>
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-38971936-4"></script>
     <script>
@@ -136,7 +137,7 @@ $markup = [
         <main>
             <div class="content">
                 <label class="searchbox" for="search">
-                    <md-icon>search</md-icon>
+                    <md-icon aria-hidden="true">search</md-icon>
                     <input type="search" id="search" placeholder="<?= __("search", UCOMP) ?>" autocomplete="off" value="<?= htmlentities($_GET["q"] ?? "") ?>">
                 </label>
                 <div id="results">
@@ -146,7 +147,7 @@ $markup = [
 
                         <div role="table" aria-label="<?= htmlentities($section["name"]) ?>" class="collection" style="--vcolor:<?= htmlentities($section["color"]) ?>;">
                             <div class="header">
-                                <md-icon><?= $section["icon"] ?></md-icon>
+                                <md-icon aria-hidden="true"><?= $section["icon"] ?></md-icon>
                                 <div class="name"><?= $section["name"] ?></div>
                             </div>
                             <div class="card" role="rowgroup">
@@ -155,7 +156,7 @@ $markup = [
                                 ?>
 
                                     <div class="item" role="row">
-                                        <md-icon><?= $item["icon"] ?></md-icon>
+                                        <md-icon aria-hidden="true"><?= $item["icon"] ?></md-icon>
                                         <div class="content">
                                             <div class="title" role="columnheader"><?= $item["name"] ?> <span class="info"><?= $item["hint"] ?></span></div>
                                             <div class="data" role="cell"><?= $item["text"] ?></div>
@@ -188,24 +189,35 @@ $markup = [
                     <img src="<?= BASE ?>/assets/images/git.svg" alt="GitHub">
                 </a>
             </div>
-            <div class="data">Proudly powered by <a href="https://t.me/tginfo" rel="noopener" target="_blank">@tginfo</a></div>
-            <div class="data"><a href="https://tginfo.me/" data-lang="homepage"><?= __("homepage", UCOMP) ?></a> |
-                <label for="lang-switch">
-                    <md-icon id="langicon">language</md-icon>
-                    <select id="lang-switch">
-                        <?php
-                        foreach ($supported_langs_file as $key => $value) {
-                            if (strlen($key) == 0 || !is_array($value)) continue;
-                        ?>
-                            <option value="<?= $key ?>" <?= ($key === $lang ? " selected" : "") ?>><?= ($value[0]) ?></option>
-                        <?php
-                        }
-                        ?>
-                    </select>
-                </label>
+            <div class="data">
+                <div class="content-side">
+                    Proudly powered by <a href="https://t.me/tginfo" rel="noopener" target="_blank">@tginfo</a>
+                </div>
             </div>
+            <div class="data"><a href="https://tginfo.me/" data-lang="homepage"><?= __("homepage", UCOMP) ?></a> |
+                <a href="#" onclick="return langSwitch(this, event)" id="langswitchlabel">
+                    <md-icon id="langicon" aria-hidden="true">language</md-icon>
+                    <?= strtoupper($lang) ?>
+                </a>
+            </div>
+            <ul id="langlist">
+                <?php
+                foreach ($supported_langs_file as $key => $value) {
+                    if (strlen($key) == 0 || !is_array($value)) continue;
+                ?>
+                    <li class="lang-link<?= ($key === $lang ? " active-lang" : "") ?>">
+                        <a href="/<?= $key ?>">
+                            <div class="lang-code"><?= strtoupper($key) ?></div><?= ($value[0]) ?>
+                        </a>
+                    </li>
+                <?php
+                }
+                ?>
+            </ul>
+
         </div>
     </footer>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <script src="<?= BASE ?>/assets/scripts/main.js"></script>
 </body>
 
